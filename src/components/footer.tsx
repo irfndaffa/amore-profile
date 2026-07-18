@@ -23,9 +23,14 @@ export default function Footer() {
       </Marquee>
 
       <div className="mx-auto flex max-w-6xl flex-col-reverse items-center justify-between gap-6 px-6 py-8 text-sm text-muted sm:flex-row sm:px-10">
-        <span>
-          © {year} {profile.nickname} — {profile.fullName}. All rights
-          reserved.
+        <span className="flex flex-col items-center gap-1 sm:items-start">
+          <span>
+            © {year} {profile.nickname} — {profile.fullName}. All rights
+            reserved.
+          </span>
+          <span className="text-xs text-muted/70">
+            Made by ur bro @irfndaffaa 👊
+          </span>
         </span>
         <Magnetic>
           <a
