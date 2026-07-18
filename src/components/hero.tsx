@@ -28,7 +28,7 @@ export default function Hero() {
     <section
       id="top"
       onMouseMove={handleMove}
-      className="relative flex min-h-[100svh] flex-col justify-between overflow-hidden pt-28"
+      className="relative flex min-h-[92svh] flex-col justify-between overflow-hidden pt-28 sm:min-h-[100svh]"
       style={{
         backgroundImage:
           "radial-gradient(500px circle at var(--x, 50%) var(--y, 20%), color-mix(in oklch, var(--accent) 16%, transparent), transparent 65%)",
@@ -151,7 +151,7 @@ export default function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 2.9, duration: 0.6 }}
-        className="mx-auto mb-8 flex items-center gap-2 text-xs uppercase tracking-widest text-muted"
+        className="mx-auto mb-6 flex items-center gap-2 text-xs uppercase tracking-widest text-muted sm:mb-8"
       >
         <motion.span
           animate={{ y: [0, 6, 0] }}

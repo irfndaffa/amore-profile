@@ -93,7 +93,7 @@ export default function Portfolio() {
   const category = portfolioCategories.find((c) => c.id === activeTab)!;
 
   return (
-    <section id="work" className="relative px-6 py-28 sm:px-10 lg:py-36">
+    <section id="work" className="relative px-6 py-16 sm:px-10 sm:py-28 lg:py-36">
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <span className="text-sm uppercase tracking-[0.3em] text-accent">
