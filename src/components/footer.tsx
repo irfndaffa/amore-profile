@@ -16,7 +16,7 @@ export default function Footer() {
             key={i}
             className="font-display flex items-center px-6 text-2xl text-paper sm:text-4xl"
           >
-            Available for freelance
+            Let&apos;s Collaborate!
             <span className="mx-6 h-2.5 w-2.5 rounded-full bg-accent" />
           </span>
         ))}
