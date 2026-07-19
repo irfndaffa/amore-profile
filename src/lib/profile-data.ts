@@ -1,17 +1,8 @@
-export const profile = {
-  fullName: "Amorutomo Ganes Mahardian",
-  nickname: "Amore",
-  roles: ["Photographer", "Videographer", "Designer"],
-  location: "Manahan, Solo, Indonesia",
-  email: "ganes.amorutomo@gmail.com",
-  phone: "0851-5788-0855",
-};
+import siteContent from "@/data/site-content.json";
 
-export const stats = [
-  { value: 5, suffix: "", label: "Companies worked with" },
-  { value: 3, suffix: "+", label: "Years of experience" },
-  { value: 3, suffix: "", label: "Core disciplines" },
-];
+export const profile = siteContent.profile;
+
+export const stats = siteContent.stats;
 
 export type ExperienceItem = {
   company: string;
@@ -20,63 +11,9 @@ export type ExperienceItem = {
   points: string[];
 };
 
-export const experience: ExperienceItem[] = [
-  {
-    company: "Arcadia Group",
-    role: "Content Creator & Graphic Designer",
-    period: "Dec 2024 — May 2026",
-    points: [
-      "Creating product catalogue in marketplace, from taking photos to editing the layout for each product in the catalogue.",
-      "Creating stickers to put into livestream videos for social media platforms.",
-      "Taking and editing content for social media (TikTok) including music cover videos, gimmicks, and cinematic edits.",
-      "Creating advertisement content for social media (TikTok).",
-    ],
-  },
-  {
-    company: "Zunzum Computer",
-    role: "Content Creator",
-    period: "May 2024 — Nov 2024",
-    points: [
-      "Research to create key visuals for company branding.",
-      "Creating feeds and reels for Instagram — from taking, editing, copywriting to uploading content.",
-    ],
-  },
-  {
-    company: "Bengkel RPM",
-    role: "Content Creator",
-    period: "Nov 2023 — Apr 2024",
-    points: [
-      "Creating feeds and reels for Instagram, starting from taking, editing, copywriting, and uploading content.",
-      "Designing banners for the workshop.",
-    ],
-  },
-  {
-    company: "Wayout .Inc",
-    role: "Content Creator",
-    period: "Apr 2023 — Oct 2023",
-    points: [
-      "Creating feeds and reels for Instagram with client based on copywriter's brief.",
-    ],
-  },
-  {
-    company: "PT Sugarad",
-    role: "Photographer & Videographer",
-    period: "Nov 2022 — Dec 2023",
-    points: [
-      "Creating feeds and reels for Instagram with client based on copywriter's brief.",
-      "Capturing video on-site to create 3-minute YouTube videos.",
-      "Taking photos and videos for client products.",
-    ],
-  },
-];
+export const experience: ExperienceItem[] = siteContent.experience;
 
-export const coreSkills = [
-  "Photography",
-  "Videography",
-  "Color Grading",
-  "Copywriting",
-  "Designing",
-];
+export const coreSkills: string[] = siteContent.coreSkills;
 
 export type SoftwareItem = {
   name: string;
@@ -85,24 +22,7 @@ export type SoftwareItem = {
   colorTo: string;
 };
 
-export const software: SoftwareItem[] = [
-  {
-    name: "Premiere Pro",
-    short: "Pr",
-    colorFrom: "#02010a",
-    colorTo: "#5f2eea",
-  },
-  {
-    name: "After Effects",
-    short: "Ae",
-    colorFrom: "#00005b",
-    colorTo: "#9578ff",
-  },
-  { name: "Photoshop", short: "Ps", colorFrom: "#001e36", colorTo: "#31a8ff" },
-  { name: "Lightroom", short: "Lr", colorFrom: "#001e36", colorTo: "#31c5f4" },
-  { name: "CapCut", short: "Cc", colorFrom: "#0a0a0a", colorTo: "#00d4ff" },
-  { name: "Canva", short: "Ca", colorFrom: "#7d2ae8", colorTo: "#00c4cc" },
-];
+export const software: SoftwareItem[] = siteContent.software;
 
 export type PortfolioCategory = {
   id: string;
@@ -112,33 +32,5 @@ export type PortfolioCategory = {
   count: number;
 };
 
-export const portfolioCategories: PortfolioCategory[] = [
-  {
-    id: "artisan",
-    label: "Artisan Guitar",
-    description: "Bold poster-style feeds & reels for a guitar brand.",
-    accent: "#ff2f6e",
-    count: 4,
-  },
-  {
-    id: "orca",
-    label: "Orca Guitar",
-    description: "Gradient-driven product & lifestyle content.",
-    accent: "#2ec4b6",
-    count: 4,
-  },
-  {
-    id: "rpm",
-    label: "Bengkel RPM",
-    description: "Automotive workshop reels & promo graphics.",
-    accent: "#e2001a",
-    count: 4,
-  },
-  {
-    id: "solo-screen",
-    label: "Solo Screen",
-    description: "Packaging brand behind-the-scenes & product content.",
-    accent: "#d1272d",
-    count: 4,
-  },
-];
+export const portfolioCategories: PortfolioCategory[] =
+  siteContent.portfolioCategories;

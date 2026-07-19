@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { FolderOpen, ImageOff, Play } from "lucide-react";
+import {
+  FolderOpen,
+  ImageOff,
+  Play,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import Reveal from "./reveal";
 import TiltCard from "./tilt-card";
 import Magnetic from "./magnetic";
@@ -16,18 +23,23 @@ function PortfolioTile({
   src,
   index,
   accent,
+  onExpand,
 }: {
   src: string;
   index: number;
   accent: string;
+  onExpand: () => void;
 }) {
   const [failed, setFailed] = useState(false);
 
   return (
     <TiltCard max={8} className="aspect-square">
-      <div
+      <button
+        type="button"
+        onClick={onExpand}
+        aria-label="Lihat foto ukuran penuh"
         data-cursor="VIEW"
-        className="group relative h-full w-full overflow-hidden rounded-2xl bg-bg-elevated"
+        className="group relative h-full w-full overflow-hidden rounded-2xl bg-bg-elevated text-left"
       >
         {!failed ? (
           <Image
@@ -54,7 +66,7 @@ function PortfolioTile({
         <div className="pointer-events-none absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <Play className="m-4 h-5 w-5 text-white" fill="white" />
         </div>
-      </div>
+      </button>
     </TiltCard>
   );
 }
@@ -88,9 +100,109 @@ function ArchiveCard() {
   );
 }
 
+function Lightbox({
+  images,
+  activeIndex,
+  onClose,
+  onNavigate,
+}: {
+  images: string[];
+  activeIndex: number;
+  onClose: () => void;
+  onNavigate: (index: number) => void;
+}) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") {
+        onNavigate((activeIndex + 1) % images.length);
+      }
+      if (e.key === "ArrowLeft") {
+        onNavigate((activeIndex - 1 + images.length) % images.length);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
+  }, [activeIndex, images.length, onClose, onNavigate]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      onClick={onClose}
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 px-4 py-10 sm:px-10"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Tutup"
+        data-cursor="CLOSE"
+        className="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-full border border-hairline/60 text-paper transition-colors duration-200 hover:border-accent hover:text-accent sm:right-8 sm:top-8"
+      >
+        <X className="h-5 w-5" />
+      </button>
+
+      {images.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate((activeIndex - 1 + images.length) % images.length);
+            }}
+            aria-label="Foto sebelumnya"
+            className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-hairline/60 text-paper transition-colors duration-200 hover:border-accent hover:text-accent sm:left-8"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate((activeIndex + 1) % images.length);
+            }}
+            aria-label="Foto berikutnya"
+            className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-hairline/60 text-paper transition-colors duration-200 hover:border-accent hover:text-accent sm:right-8"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </>
+      )}
+
+      <motion.div
+        key={activeIndex}
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative h-full w-full max-w-4xl"
+      >
+        <Image
+          src={images[activeIndex]}
+          alt=""
+          fill
+          unoptimized
+          className="object-contain"
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function Portfolio() {
   const [activeTab, setActiveTab] = useState(portfolioCategories[0].id);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const category = portfolioCategories.find((c) => c.id === activeTab)!;
+  const images = Array.from(
+    { length: category.count },
+    (_, i) => `/portfolio/${category.id}/${i + 1}.jpg`,
+  );
 
   return (
     <section
@@ -115,7 +227,10 @@ export default function Portfolio() {
           {portfolioCategories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setActiveTab(cat.id)}
+              onClick={() => {
+                setActiveTab(cat.id);
+                setLightboxIndex(null);
+              }}
               data-cursor="TAB"
               className={`rounded-full border px-5 py-2.5 text-sm uppercase tracking-wide transition-colors duration-200 ${
                 activeTab === cat.id
@@ -139,12 +254,13 @@ export default function Portfolio() {
           >
             <p className="mb-6 text-sm text-muted">{category.description}</p>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6">
-              {Array.from({ length: category.count }).map((_, i) => (
+              {images.map((src, i) => (
                 <PortfolioTile
                   key={`${category.id}-${i}`}
-                  src={`/portfolio/${category.id}/${i + 1}.jpg`}
+                  src={src}
                   index={i}
                   accent={category.accent}
+                  onExpand={() => setLightboxIndex(i)}
                 />
               ))}
               <ArchiveCard />
@@ -152,6 +268,17 @@ export default function Portfolio() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {lightboxIndex !== null && (
+          <Lightbox
+            images={images}
+            activeIndex={lightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+            onNavigate={setLightboxIndex}
+          />
+        )}
+      </AnimatePresence>
     </section>
   );
 }

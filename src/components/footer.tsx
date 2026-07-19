@@ -29,7 +29,14 @@ export default function Footer() {
             reserved.
           </span>
           <span className="text-xs text-muted/70">
-            Made by ur bro @irfndaffaa 👊
+            Made by ur bro @irfndaffaa{" "}
+            <a
+              href="/admin"
+              aria-label="Admin"
+              className="select-none no-underline"
+            >
+              👊
+            </a>
           </span>
         </span>
         <Magnetic>
