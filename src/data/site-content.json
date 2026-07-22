@@ -2,15 +2,31 @@
   "profile": {
     "fullName": "Amorutomo Ganes Mahardian",
     "nickname": "Amore",
-    "roles": ["Photographer", "Videographer", "Designer"],
+    "roles": [
+      "Photographer",
+      "Videographer",
+      "Designer"
+    ],
     "location": "Manahan, Solo, Indonesia",
     "email": "ganes.amorutomo@gmail.com",
     "phone": "0851-5788-0855"
   },
   "stats": [
-    { "value": 5, "suffix": "", "label": "Companies worked with" },
-    { "value": 3, "suffix": "+", "label": "Years of experience" },
-    { "value": 3, "suffix": "", "label": "Core disciplines" }
+    {
+      "value": 5,
+      "suffix": "",
+      "label": "Companies worked with"
+    },
+    {
+      "value": 3,
+      "suffix": "+",
+      "label": "Years of experience"
+    },
+    {
+      "value": 3,
+      "suffix": "",
+      "label": "Core disciplines"
+    }
   ],
   "experience": [
     {
