@@ -362,7 +362,7 @@ export async function addPortfolioVideoAction(
       if (!category) throw new Error("Category not found.");
 
       if (sizeBytes > MAX_VIDEO_SIZE_BYTES) {
-        throw new Error("Ukuran video maksimal 5MB.");
+        throw new Error("Ukuran video maksimal 3MB.");
       }
 
       const videos = category.videos ?? [];

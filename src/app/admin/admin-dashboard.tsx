@@ -596,7 +596,7 @@ function PortfolioCategoryEditor({
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_VIDEO_SIZE_BYTES) {
-      setVideoStatus("Ukuran video maksimal 5MB.");
+      setVideoStatus("Ukuran video maksimal 3MB.");
       e.target.value = "";
       return;
     }
@@ -787,7 +787,7 @@ function PortfolioCategoryEditor({
               />
             </label>
           )}
-          <span className="text-xs text-muted">Maks. 5MB per video.</span>
+          <span className="text-xs text-muted">Maks. 3MB per video.</span>
           {videoStatus && (
             <span
               className={

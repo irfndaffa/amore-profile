@@ -49,4 +49,4 @@ export const portfolioCategories: PortfolioCategory[] =
 
 export const MAX_VIDEOS_PER_CATEGORY = 2;
 export const MAX_TOTAL_VIDEOS = 50;
-export const MAX_VIDEO_SIZE_BYTES = 5 * 1024 * 1024;
+export const MAX_VIDEO_SIZE_BYTES = 3 * 1024 * 1024;
