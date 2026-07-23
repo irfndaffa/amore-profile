@@ -24,13 +24,23 @@ export type SoftwareItem = {
 
 export const software: SoftwareItem[] = siteContent.software;
 
+export type PortfolioVideo = {
+  slot: number;
+  ext: string;
+};
+
 export type PortfolioCategory = {
   id: string;
   label: string;
   description: string;
   accent: string;
   count: number;
+  videos?: PortfolioVideo[];
 };
 
 export const portfolioCategories: PortfolioCategory[] =
   siteContent.portfolioCategories;
+
+export const MAX_VIDEOS_PER_CATEGORY = 2;
+export const MAX_TOTAL_VIDEOS = 50;
+export const MAX_VIDEO_SIZE_BYTES = 5 * 1024 * 1024;

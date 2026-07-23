@@ -10,13 +10,18 @@ import {
 } from "@/lib/admin-auth";
 import { commitFile, commitJson, deleteFile } from "@/lib/github-content";
 import siteContent from "@/data/site-content.json";
-import type {
-  ExperienceItem,
-  PortfolioCategory,
-  SoftwareItem,
+import {
+  MAX_TOTAL_VIDEOS,
+  MAX_VIDEOS_PER_CATEGORY,
+  MAX_VIDEO_SIZE_BYTES,
+  type ExperienceItem,
+  type PortfolioCategory,
+  type SoftwareItem,
 } from "@/lib/profile-data";
 
 const CONTENT_PATH = "src/data/site-content.json";
+const ALLOWED_VIDEO_EXTS = ["mp4", "webm", "mov", "m4v"];
+const CATEGORY_ID_REGEX = /^[a-z0-9-]+$/;
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -241,6 +246,204 @@ export async function removePortfolioPhotoAction(
       CONTENT_PATH,
       updated,
       "chore(admin): remove portfolio photo slot",
+    );
+    revalidatePath("/");
+    revalidatePath("/admin");
+  });
+}
+
+// ---------------- Portfolio categories (dynamic) ----------------
+
+export type PortfolioCategoryFormData = {
+  id: string;
+  label: string;
+  description: string;
+  accent: string;
+};
+
+export async function addPortfolioCategoryAction(
+  data: PortfolioCategoryFormData,
+): Promise<ActionResult> {
+  return toActionResult(async () => {
+    await assertAdmin();
+    const id = data.id.trim().toLowerCase();
+    if (!CATEGORY_ID_REGEX.test(id)) {
+      throw new Error(
+        "ID portofolio hanya boleh huruf kecil, angka, dan tanda strip.",
+      );
+    }
+    if (!data.label.trim()) {
+      throw new Error("Nama portofolio wajib diisi.");
+    }
+
+    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    if (categories.some((c) => c.id === id)) {
+      throw new Error("ID portofolio sudah dipakai.");
+    }
+
+    const updated = {
+      ...siteContent,
+      portfolioCategories: [
+        ...categories,
+        {
+          id,
+          label: data.label.trim(),
+          description: data.description.trim(),
+          accent: data.accent.trim() || "#ff2f6e",
+          count: 0,
+          videos: [],
+        },
+      ],
+    };
+    await commitJson(
+      CONTENT_PATH,
+      updated,
+      `chore(admin): add portfolio category ${id}`,
+    );
+    revalidatePath("/");
+    revalidatePath("/admin");
+  });
+}
+
+export async function removePortfolioCategoryAction(
+  categoryId: string,
+): Promise<ActionResult> {
+  return toActionResult(async () => {
+    await assertAdmin();
+    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) throw new Error("Category not found.");
+    if (categories.length <= 1) {
+      throw new Error("Minimal harus ada satu portofolio.");
+    }
+
+    for (let slot = 1; slot <= category.count; slot++) {
+      await deleteFile({
+        filePath: photoPath(categoryId, slot),
+        message: `chore(admin): remove portfolio photo ${categoryId}/${slot}`,
+      });
+    }
+    for (const video of category.videos ?? []) {
+      await deleteFile({
+        filePath: videoPath(categoryId, video.slot, video.ext),
+        message: `chore(admin): remove portfolio video ${categoryId}/${video.slot}`,
+      });
+    }
+
+    const updated = {
+      ...siteContent,
+      portfolioCategories: categories.filter((c) => c.id !== categoryId),
+    };
+    await commitJson(
+      CONTENT_PATH,
+      updated,
+      `chore(admin): remove portfolio category ${categoryId}`,
+    );
+    revalidatePath("/");
+    revalidatePath("/admin");
+  });
+}
+
+// ---------------- Portfolio videos ----------------
+
+function videoPath(categoryId: string, slot: number, ext: string) {
+  return `public/portfolio/${categoryId}/video-${slot}.${ext}`;
+}
+
+function normalizeVideoExt(ext: string): string {
+  const normalized = ext.trim().toLowerCase().replace(/^\./, "");
+  if (!ALLOWED_VIDEO_EXTS.includes(normalized)) {
+    throw new Error("Format video tidak didukung (gunakan mp4, webm, mov, atau m4v).");
+  }
+  return normalized;
+}
+
+export async function addPortfolioVideoAction(
+  categoryId: string,
+  base64Content: string,
+  ext: string,
+): Promise<ActionResult> {
+  return toActionResult(async () => {
+    await assertAdmin();
+    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) throw new Error("Category not found.");
+
+    const sizeBytes = Buffer.from(base64Content, "base64").length;
+    if (sizeBytes > MAX_VIDEO_SIZE_BYTES) {
+      throw new Error("Ukuran video maksimal 5MB.");
+    }
+
+    const videos = category.videos ?? [];
+    if (videos.length >= MAX_VIDEOS_PER_CATEGORY) {
+      throw new Error(`Maksimal ${MAX_VIDEOS_PER_CATEGORY} video per portofolio.`);
+    }
+
+    const totalVideos = categories.reduce(
+      (sum, c) => sum + (c.videos?.length ?? 0),
+      0,
+    );
+    if (totalVideos >= MAX_TOTAL_VIDEOS) {
+      throw new Error(`Batas total ${MAX_TOTAL_VIDEOS} video sudah tercapai.`);
+    }
+
+    const normalizedExt = normalizeVideoExt(ext);
+    const newSlot = videos.reduce((max, v) => Math.max(max, v.slot), 0) + 1;
+
+    await commitFile({
+      filePath: videoPath(categoryId, newSlot, normalizedExt),
+      content: base64Content,
+      isBase64: true,
+      message: `chore(admin): add portfolio video ${categoryId}/${newSlot}`,
+    });
+
+    const updated = {
+      ...siteContent,
+      portfolioCategories: categories.map((c) =>
+        c.id === categoryId
+          ? { ...c, videos: [...videos, { slot: newSlot, ext: normalizedExt }] }
+          : c,
+      ),
+    };
+    await commitJson(
+      CONTENT_PATH,
+      updated,
+      "chore(admin): add portfolio video",
+    );
+    revalidatePath("/");
+    revalidatePath("/admin");
+  });
+}
+
+export async function removePortfolioVideoAction(
+  categoryId: string,
+  slot: number,
+): Promise<ActionResult> {
+  return toActionResult(async () => {
+    await assertAdmin();
+    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) throw new Error("Category not found.");
+    const video = (category.videos ?? []).find((v) => v.slot === slot);
+    if (!video) throw new Error("Video not found.");
+
+    await deleteFile({
+      filePath: videoPath(categoryId, slot, video.ext),
+      message: `chore(admin): remove portfolio video ${categoryId}/${slot}`,
+    });
+
+    const updated = {
+      ...siteContent,
+      portfolioCategories: categories.map((c) =>
+        c.id === categoryId
+          ? { ...c, videos: (c.videos ?? []).filter((v) => v.slot !== slot) }
+          : c,
+      ),
+    };
+    await commitJson(
+      CONTENT_PATH,
+      updated,
+      "chore(admin): remove portfolio video",
     );
     revalidatePath("/");
     revalidatePath("/admin");

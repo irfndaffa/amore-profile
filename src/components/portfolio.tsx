@@ -14,7 +14,7 @@ import {
 import Reveal from "./reveal";
 import TiltCard from "./tilt-card";
 import Magnetic from "./magnetic";
-import { portfolioCategories } from "@/lib/profile-data";
+import { MAX_VIDEOS_PER_CATEGORY, portfolioCategories } from "@/lib/profile-data";
 
 const DRIVE_HREF =
   "https://drive.google.com/drive/folders/1y09HGmijgp3PMFhzaqR17uZVyJUZqlTL";
@@ -65,6 +65,60 @@ function PortfolioTile({
         )}
         <div className="pointer-events-none absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <Play className="m-4 h-5 w-5 text-white" fill="white" />
+        </div>
+      </button>
+    </TiltCard>
+  );
+}
+
+function VideoTile({
+  src,
+  index,
+  accent,
+  onExpand,
+}: {
+  src: string;
+  index: number;
+  accent: string;
+  onExpand: () => void;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <TiltCard max={8} className="aspect-square">
+      <button
+        type="button"
+        onClick={onExpand}
+        aria-label="Putar video"
+        data-cursor="PLAY"
+        className="group relative h-full w-full overflow-hidden rounded-2xl bg-bg-elevated text-left"
+      >
+        {!failed ? (
+          <video
+            src={src}
+            muted
+            playsInline
+            preload="metadata"
+            onError={() => setFailed(true)}
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+          />
+        ) : (
+          <div
+            className="flex h-full w-full flex-col items-center justify-center gap-2 opacity-70"
+            style={{
+              backgroundImage: `linear-gradient(155deg, ${accent}33, transparent 70%)`,
+            }}
+          >
+            <ImageOff className="h-6 w-6 text-muted" strokeWidth={1.25} />
+            <span className="text-[11px] uppercase tracking-widest text-muted">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 transition-colors duration-300 group-hover:bg-black/50">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/60 bg-black/40 backdrop-blur-sm">
+            <Play className="h-5 w-5 text-white" fill="white" />
+          </span>
         </div>
       </button>
     </TiltCard>
@@ -195,14 +249,76 @@ function Lightbox({
   );
 }
 
+function VideoLightbox({
+  src,
+  onClose,
+}: {
+  src: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+      onClick={onClose}
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 px-4 py-10 sm:px-10"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Tutup"
+        data-cursor="CLOSE"
+        className="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-full border border-hairline/60 text-paper transition-colors duration-200 hover:border-accent hover:text-accent sm:right-8 sm:top-8"
+      >
+        <X className="h-5 w-5" />
+      </button>
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative h-full w-full max-w-4xl"
+      >
+        <video
+          src={src}
+          controls
+          autoPlay
+          playsInline
+          className="h-full w-full object-contain"
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
+
+
 export default function Portfolio() {
   const [activeTab, setActiveTab] = useState(portfolioCategories[0].id);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [activeVideo, setActiveVideo] = useState<string | null>(null);
   const category = portfolioCategories.find((c) => c.id === activeTab)!;
   const images = Array.from(
     { length: category.count },
     (_, i) => `/portfolio/${category.id}/${i + 1}.jpg`,
   );
+  const videos = (category.videos ?? [])
+    .slice(0, MAX_VIDEOS_PER_CATEGORY)
+    .map((v) => `/portfolio/${category.id}/video-${v.slot}.${v.ext}`);
 
   return (
     <section
@@ -230,6 +346,7 @@ export default function Portfolio() {
               onClick={() => {
                 setActiveTab(cat.id);
                 setLightboxIndex(null);
+                setActiveVideo(null);
               }}
               data-cursor="TAB"
               className={`rounded-full border px-5 py-2.5 text-sm uppercase tracking-wide transition-colors duration-200 ${
@@ -263,6 +380,15 @@ export default function Portfolio() {
                   onExpand={() => setLightboxIndex(i)}
                 />
               ))}
+              {videos.map((src, i) => (
+                <VideoTile
+                  key={`${category.id}-video-${i}`}
+                  src={src}
+                  index={i}
+                  accent={category.accent}
+                  onExpand={() => setActiveVideo(src)}
+                />
+              ))}
               <ArchiveCard />
             </div>
           </motion.div>
@@ -276,6 +402,15 @@ export default function Portfolio() {
             activeIndex={lightboxIndex}
             onClose={() => setLightboxIndex(null)}
             onNavigate={setLightboxIndex}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeVideo !== null && (
+          <VideoLightbox
+            src={activeVideo}
+            onClose={() => setActiveVideo(null)}
           />
         )}
       </AnimatePresence>

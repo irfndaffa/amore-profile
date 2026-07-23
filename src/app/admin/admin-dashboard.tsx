@@ -4,13 +4,19 @@ import { useState, useTransition, type ChangeEvent } from "react";
 import Image from "next/image";
 import {
   ExperienceItem,
+  MAX_VIDEOS_PER_CATEGORY,
+  MAX_VIDEO_SIZE_BYTES,
   PortfolioCategory,
   SoftwareItem,
 } from "@/lib/profile-data";
 import {
+  addPortfolioCategoryAction,
   addPortfolioPhotoAction,
+  addPortfolioVideoAction,
   logoutAction,
+  removePortfolioCategoryAction,
   removePortfolioPhotoAction,
+  removePortfolioVideoAction,
   saveAboutAction,
   saveContactAction,
   saveExperienceAction,
@@ -514,15 +520,38 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+const VIDEO_EXT_BY_MIME: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
+  "video/x-m4v": "m4v",
+};
+const ALLOWED_VIDEO_EXTS = ["mp4", "webm", "mov", "m4v"];
+
+function getVideoExt(file: File): string {
+  if (VIDEO_EXT_BY_MIME[file.type]) return VIDEO_EXT_BY_MIME[file.type];
+  const fromName = file.name.split(".").pop()?.toLowerCase();
+  return fromName && ALLOWED_VIDEO_EXTS.includes(fromName) ? fromName : "mp4";
+}
+
 function PortfolioCategoryEditor({
   category,
+  onRemoveCategory,
+  canRemoveCategory,
+  removingCategory,
 }: {
   category: PortfolioCategory;
+  onRemoveCategory: () => void;
+  canRemoveCategory: boolean;
+  removingCategory: boolean;
 }) {
   const [status, setStatus] = useState<Record<number, string>>({});
   const [pendingSlot, setPendingSlot] = useState<number | null>(null);
   const [pendingAction, startTransition] = useTransition();
   const [bump, setBump] = useState(0);
+  const [videos, setVideos] = useState(category.videos ?? []);
+  const [videoStatus, setVideoStatus] = useState("");
+  const [pendingVideo, startVideoTransition] = useTransition();
 
   const handleUpload =
     (slot: number) => async (e: ChangeEvent<HTMLInputElement>) => {
@@ -568,15 +597,73 @@ function PortfolioCategoryEditor({
     });
   };
 
+  const handleUploadVideo = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_VIDEO_SIZE_BYTES) {
+      setVideoStatus("Ukuran video maksimal 5MB.");
+      e.target.value = "";
+      return;
+    }
+    if (videos.length >= MAX_VIDEOS_PER_CATEGORY) {
+      setVideoStatus(
+        `Maksimal ${MAX_VIDEOS_PER_CATEGORY} video per portofolio.`,
+      );
+      e.target.value = "";
+      return;
+    }
+    const ext = getVideoExt(file);
+    const base64 = await fileToBase64(file);
+    startVideoTransition(async () => {
+      const res = await addPortfolioVideoAction(category.id, base64, ext);
+      if (res.ok) {
+        const nextSlot =
+          videos.reduce((max, v) => Math.max(max, v.slot), 0) + 1;
+        setVideos((prev) => [...prev, { slot: nextSlot, ext }]);
+        setVideoStatus("saved");
+      } else {
+        setVideoStatus(res.error);
+      }
+    });
+    e.target.value = "";
+  };
+
+  const handleRemoveVideo = (slot: number) => {
+    startVideoTransition(async () => {
+      const res = await removePortfolioVideoAction(category.id, slot);
+      if (res.ok) {
+        setVideos((prev) => prev.filter((v) => v.slot !== slot));
+        setVideoStatus("saved");
+      } else {
+        setVideoStatus(res.error);
+      }
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline/60 p-5">
       <div className="flex items-center justify-between">
         <span className="font-display text-xl text-paper">
           {category.label}
         </span>
-        <span className="text-xs uppercase tracking-widest text-muted">
-          {category.count} foto
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs uppercase tracking-widest text-muted">
+            {category.count} foto · {videos.length}/{MAX_VIDEOS_PER_CATEGORY} video
+          </span>
+          <button
+            type="button"
+            onClick={onRemoveCategory}
+            disabled={!canRemoveCategory || removingCategory}
+            title={
+              canRemoveCategory
+                ? "Hapus portofolio ini"
+                : "Minimal harus ada satu portofolio"
+            }
+            className="rounded-full border border-hairline/60 px-4 py-1.5 text-xs uppercase tracking-wide text-accent-2 transition-colors duration-200 hover:opacity-80 disabled:opacity-40"
+          >
+            {removingCategory ? "Menghapus…" : "Hapus portofolio"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -643,15 +730,188 @@ function PortfolioCategoryEditor({
           </span>
         )}
       </div>
+
+      <div className="flex flex-col gap-3 border-t border-hairline/60 pt-4">
+        <span className="text-xs uppercase tracking-widest text-muted">
+          Video (klik untuk putar di halaman utama)
+        </span>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {videos.map((video) => (
+            <div key={video.slot} className="flex flex-col gap-2">
+              <div className="relative aspect-video overflow-hidden rounded-lg bg-bg-elevated">
+                <video
+                  src={`/portfolio/${category.id}/video-${video.slot}.${video.ext}?v=${bump}`}
+                  controls
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemoveVideo(video.slot)}
+                disabled={pendingVideo}
+                className="rounded-lg border border-hairline/60 px-3 py-2 text-center text-xs uppercase tracking-wide text-accent-2 transition-colors duration-200 hover:opacity-80 disabled:opacity-60"
+              >
+                Hapus video
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {videos.length < MAX_VIDEOS_PER_CATEGORY && (
+            <label className="cursor-pointer rounded-full border border-hairline/60 px-6 py-3 text-sm uppercase tracking-wide text-paper transition-colors duration-200 hover:border-accent hover:text-accent">
+              {pendingVideo ? "Mengunggah…" : "+ Tambah video"}
+              <input
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={handleUploadVideo}
+              />
+            </label>
+          )}
+          <span className="text-xs text-muted">Maks. 5MB per video.</span>
+          {videoStatus && (
+            <span
+              className={
+                videoStatus === "saved"
+                  ? "text-sm text-accent"
+                  : "text-sm text-accent-2"
+              }
+            >
+              {videoStatus === "saved" ? "Tersimpan." : videoStatus}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-function PortfolioTab({ categories }: { categories: PortfolioCategory[] }) {
+function PortfolioTab({
+  categories: initialCategories,
+}: {
+  categories: PortfolioCategory[];
+}) {
+  const [categories, setCategories] = useState(initialCategories);
+  const [pendingNew, startNewTransition] = useTransition();
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const [newStatus, setNewStatus] = useState("");
+  const [newId, setNewId] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newAccent, setNewAccent] = useState("#ff2f6e");
+
+  const handleAddCategory = () => {
+    const id = newId.trim().toLowerCase();
+    if (!id || !newLabel.trim()) {
+      setNewStatus("ID dan nama wajib diisi.");
+      return;
+    }
+    startNewTransition(async () => {
+      const res = await addPortfolioCategoryAction({
+        id,
+        label: newLabel,
+        description: newDescription,
+        accent: newAccent,
+      });
+      if (res.ok) {
+        setCategories((prev) => [
+          ...prev,
+          {
+            id,
+            label: newLabel.trim(),
+            description: newDescription.trim(),
+            accent: newAccent.trim() || "#ff2f6e",
+            count: 0,
+            videos: [],
+          },
+        ]);
+        setNewId("");
+        setNewLabel("");
+        setNewDescription("");
+        setNewAccent("#ff2f6e");
+        setNewStatus("saved");
+      } else {
+        setNewStatus(res.error);
+      }
+    });
+  };
+
+  const handleRemoveCategory = (categoryId: string) => {
+    setPendingRemove(categoryId);
+    startNewTransition(async () => {
+      const res = await removePortfolioCategoryAction(categoryId);
+      if (res.ok) {
+        setCategories((prev) => prev.filter((c) => c.id !== categoryId));
+      } else {
+        setNewStatus(res.error);
+      }
+      setPendingRemove(null);
+    });
+  };
+
   return (
     <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4 rounded-xl border border-hairline/60 p-5">
+        <span className="font-display text-xl text-paper">
+          Tambah portofolio baru
+        </span>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <input
+            className={inputClass}
+            value={newId}
+            onChange={(e) => setNewId(e.target.value)}
+            placeholder="ID (mis. new-brand)"
+          />
+          <input
+            className={inputClass}
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            placeholder="Nama tampilan"
+          />
+          <input
+            className={inputClass}
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            placeholder="Deskripsi singkat"
+          />
+          <input
+            className={inputClass}
+            value={newAccent}
+            onChange={(e) => setNewAccent(e.target.value)}
+            placeholder="#warna-aksen"
+          />
+        </div>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={handleAddCategory}
+            disabled={pendingNew}
+            className="self-start rounded-full bg-accent px-6 py-3 text-sm font-medium uppercase tracking-wide text-accent-ink transition-transform duration-200 hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+          >
+            {pendingNew ? "Menyimpan…" : "+ Tambah portofolio"}
+          </button>
+          {newStatus && (
+            <span
+              className={
+                newStatus === "saved"
+                  ? "text-sm text-accent"
+                  : "text-sm text-accent-2"
+              }
+            >
+              {newStatus === "saved" ? "Tersimpan." : newStatus}
+            </span>
+          )}
+        </div>
+      </div>
+
       {categories.map((cat) => (
-        <PortfolioCategoryEditor key={cat.id} category={cat} />
+        <PortfolioCategoryEditor
+          key={cat.id}
+          category={cat}
+          onRemoveCategory={() => handleRemoveCategory(cat.id)}
+          canRemoveCategory={categories.length > 1}
+          removingCategory={pendingRemove === cat.id}
+        />
       ))}
     </div>
   );

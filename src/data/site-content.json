@@ -128,28 +128,32 @@
       "label": "Artisan Guitar",
       "description": "Bold poster-style feeds & reels for a guitar brand.",
       "accent": "#ff2f6e",
-      "count": 4
+      "count": 4,
+      "videos": []
     },
     {
       "id": "orca",
       "label": "Orca Guitar",
       "description": "Gradient-driven product & lifestyle content.",
       "accent": "#2ec4b6",
-      "count": 4
+      "count": 4,
+      "videos": []
     },
     {
       "id": "rpm",
       "label": "Bengkel RPM",
       "description": "Automotive workshop reels & promo graphics.",
       "accent": "#e2001a",
-      "count": 4
+      "count": 4,
+      "videos": []
     },
     {
       "id": "solo-screen",
       "label": "Solo Screen",
       "description": "Packaging brand behind-the-scenes & product content.",
       "accent": "#d1272d",
-      "count": 4
+      "count": 4,
+      "videos": []
     }
   ]
 }
