@@ -26,8 +26,14 @@ export const software: SoftwareItem[] = siteContent.software;
 
 export type PortfolioVideo = {
   slot: number;
-  url: string;
+  pathname: string;
 };
+
+// Portfolio videos live in a private Vercel Blob store, so they must be
+// streamed through our own proxy route instead of linked to directly.
+export function getPortfolioVideoSrc(pathname: string): string {
+  return `/api/portfolio-video?pathname=${encodeURIComponent(pathname)}`;
+}
 
 export type PortfolioCategory = {
   id: string;

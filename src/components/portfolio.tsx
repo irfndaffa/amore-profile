@@ -14,7 +14,11 @@ import {
 import Reveal from "./reveal";
 import TiltCard from "./tilt-card";
 import Magnetic from "./magnetic";
-import { MAX_VIDEOS_PER_CATEGORY, portfolioCategories } from "@/lib/profile-data";
+import {
+  MAX_VIDEOS_PER_CATEGORY,
+  portfolioCategories,
+  getPortfolioVideoSrc,
+} from "@/lib/profile-data";
 
 const DRIVE_HREF =
   "https://drive.google.com/drive/folders/1y09HGmijgp3PMFhzaqR17uZVyJUZqlTL";
@@ -318,7 +322,7 @@ export default function Portfolio() {
   );
   const videos = (category.videos ?? [])
     .slice(0, MAX_VIDEOS_PER_CATEGORY)
-    .map((v) => v.url);
+    .map((v) => getPortfolioVideoSrc(v.pathname));
 
   return (
     <section

@@ -9,6 +9,7 @@ import {
   MAX_VIDEO_SIZE_BYTES,
   PortfolioCategory,
   SoftwareItem,
+  getPortfolioVideoSrc,
 } from "@/lib/profile-data";
 import {
   addPortfolioCategoryAction,
@@ -618,20 +619,23 @@ function PortfolioCategoryEditor({
         `portfolio/${category.id}/${Date.now()}-${file.name}`,
         file,
         {
-          access: "public",
+          access: "private",
           handleUploadUrl: "/api/portfolio-video-upload",
         },
       );
       startVideoTransition(async () => {
         const res = await addPortfolioVideoAction(
           category.id,
-          blob.url,
+          blob.pathname,
           file.size,
         );
         if (res.ok) {
           const nextSlot =
             videos.reduce((max, v) => Math.max(max, v.slot), 0) + 1;
-          setVideos((prev) => [...prev, { slot: nextSlot, url: blob.url }]);
+          setVideos((prev) => [
+            ...prev,
+            { slot: nextSlot, pathname: blob.pathname },
+          ]);
           setVideoStatus("saved");
         } else {
           setVideoStatus(res.error);
@@ -755,7 +759,7 @@ function PortfolioCategoryEditor({
             <div key={video.slot} className="flex flex-col gap-2">
               <div className="relative aspect-video overflow-hidden rounded-lg bg-bg-elevated">
                 <video
-                  src={video.url}
+                  src={getPortfolioVideoSrc(video.pathname)}
                   controls
                   className="h-full w-full object-cover"
                 />

@@ -324,7 +324,7 @@ export async function removePortfolioCategoryAction(
       });
     }
     for (const video of category.videos ?? []) {
-      await del(video.url).catch(() => {});
+      await del(video.pathname).catch(() => {});
     }
 
     const updated = {
@@ -351,7 +351,7 @@ export async function removePortfolioCategoryAction(
 
 export async function addPortfolioVideoAction(
   categoryId: string,
-  url: string,
+  pathname: string,
   sizeBytes: number,
 ): Promise<ActionResult> {
   return toActionResult(async () => {
@@ -385,7 +385,7 @@ export async function addPortfolioVideoAction(
         ...siteContent,
         portfolioCategories: categories.map((c) =>
           c.id === categoryId
-            ? { ...c, videos: [...videos, { slot: newSlot, url }] }
+            ? { ...c, videos: [...videos, { slot: newSlot, pathname }] }
             : c,
         ),
       };
@@ -398,7 +398,7 @@ export async function addPortfolioVideoAction(
       revalidatePath("/admin");
     } catch (error) {
       // Clean up the orphaned blob if we can't register it in the content JSON.
-      await del(url).catch(() => {});
+      await del(pathname).catch(() => {});
       throw error;
     }
   });
@@ -416,7 +416,7 @@ export async function removePortfolioVideoAction(
     const video = (category.videos ?? []).find((v) => v.slot === slot);
     if (!video) throw new Error("Video not found.");
 
-    await del(video.url).catch(() => {});
+    await del(video.pathname).catch(() => {});
 
     const updated = {
       ...siteContent,
