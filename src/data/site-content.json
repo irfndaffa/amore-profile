@@ -129,7 +129,12 @@
       "description": "Bold poster-style feeds & reels for a guitar brand.",
       "accent": "#ff2f6e",
       "count": 4,
-      "videos": []
+      "videos": [
+        {
+          "slot": 1,
+          "pathname": "portfolio/artisan/1784839536242-test-B9YNewuD68DL4SCwaFExHBYn1jY0gO.mp4"
+        }
+      ]
     },
     {
       "id": "orca",
