@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/admin-auth";
-import {
-  coreSkills,
-  experience,
-  portfolioCategories,
-  profile,
-  software,
-  stats,
-} from "@/lib/profile-data";
+import { getSiteContent } from "@/lib/site-content";
 import LoginForm from "./login-form";
 import AdminDashboard from "./admin-dashboard";
 
@@ -23,14 +16,16 @@ export default async function AdminPage() {
     return <LoginForm />;
   }
 
+  const content = await getSiteContent();
+
   return (
     <AdminDashboard
-      profile={profile}
-      stats={stats}
-      experience={experience}
-      coreSkills={coreSkills}
-      software={software}
-      portfolioCategories={portfolioCategories}
+      profile={content.profile}
+      stats={content.stats}
+      experience={content.experience}
+      coreSkills={content.coreSkills}
+      software={content.software}
+      portfolioCategories={content.portfolioCategories}
     />
   );
 }

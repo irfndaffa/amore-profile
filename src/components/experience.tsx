@@ -1,9 +1,13 @@
 "use client";
 
 import Reveal from "./reveal";
-import { experience } from "@/lib/profile-data";
+import type { ExperienceItem } from "@/lib/profile-data";
 
-export default function Experience() {
+export default function Experience({
+  experience,
+}: {
+  experience: ExperienceItem[];
+}) {
   return (
     <section id="experience" className="relative px-6 py-28 sm:px-10 lg:py-36">
       <div className="mx-auto max-w-6xl">

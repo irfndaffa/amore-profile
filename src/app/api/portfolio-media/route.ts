@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { get } from "@vercel/blob";
 
-// Portfolio videos are stored in a private Vercel Blob store, so they must be
-// streamed to visitors through a Function rather than linked to directly.
-// Only pathnames under our fixed "portfolio/<category>/<file>" namespace are
-// allowed, which also rules out path traversal / access to unrelated blobs.
+// Portfolio photos and videos are stored in a private Vercel Blob store, so
+// they must be streamed to visitors through a Function rather than linked
+// to directly. Only pathnames under our fixed "portfolio/<category>/<file>"
+// namespace are allowed, which also rules out path traversal / access to
+// unrelated blobs.
 const SAFE_PATHNAME = /^portfolio\/[a-z0-9-]+\/[^/]+$/;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {

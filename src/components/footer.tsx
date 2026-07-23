@@ -3,9 +3,9 @@
 import Marquee from "./marquee";
 import Magnetic from "./magnetic";
 import { ArrowUp } from "lucide-react";
-import { profile } from "@/lib/profile-data";
+import type { Profile } from "@/lib/profile-data";
 
-export default function Footer() {
+export default function Footer({ profile }: { profile: Profile }) {
   const year = new Date().getFullYear();
 
   return (

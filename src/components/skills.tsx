@@ -4,9 +4,15 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Reveal from "./reveal";
 import SoftwareDock from "./software-dock";
-import { coreSkills } from "@/lib/profile-data";
+import type { SoftwareItem } from "@/lib/profile-data";
 
-export default function Skills() {
+export default function Skills({
+  coreSkills,
+  software,
+}: {
+  coreSkills: string[];
+  software: SoftwareItem[];
+}) {
   const [active, setActive] = useState<number | null>(null);
 
   return (
@@ -65,7 +71,7 @@ export default function Skills() {
               Daily drivers
             </h3>
           </Reveal>
-          <SoftwareDock />
+          <SoftwareDock software={software} />
         </div>
       </div>
     </section>

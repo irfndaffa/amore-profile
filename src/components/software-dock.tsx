@@ -3,9 +3,13 @@
 import { motion } from "framer-motion";
 import TiltCard from "./tilt-card";
 import Reveal from "./reveal";
-import { software } from "@/lib/profile-data";
+import type { SoftwareItem } from "@/lib/profile-data";
 
-export default function SoftwareDock() {
+export default function SoftwareDock({
+  software,
+}: {
+  software: SoftwareItem[];
+}) {
   return (
     <div className="mt-10 grid grid-cols-3 gap-6 sm:grid-cols-6 sm:gap-8">
       {software.map((item, i) => (

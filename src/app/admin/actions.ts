@@ -8,9 +8,8 @@ import {
   requireAdmin,
   verifyAdminPassword,
 } from "@/lib/admin-auth";
-import { commitFile, commitJson, deleteFile } from "@/lib/github-content";
-import { del } from "@vercel/blob";
-import siteContent from "@/data/site-content.json";
+import { getSiteContent, saveSiteContent } from "@/lib/site-content";
+import { del, put } from "@vercel/blob";
 import {
   MAX_TOTAL_VIDEOS,
   MAX_VIDEOS_PER_CATEGORY,
@@ -20,7 +19,6 @@ import {
   type SoftwareItem,
 } from "@/lib/profile-data";
 
-const CONTENT_PATH = "src/data/site-content.json";
 const CATEGORY_ID_REGEX = /^[a-z0-9-]+$/;
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -81,10 +79,11 @@ export async function saveAboutAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
+    const content = await getSiteContent();
     const updated = {
-      ...siteContent,
+      ...content,
       profile: {
-        ...siteContent.profile,
+        ...content.profile,
         fullName: data.fullName,
         nickname: data.nickname,
         roles: data.roles,
@@ -92,11 +91,7 @@ export async function saveAboutAction(
       },
       stats: data.stats,
     };
-    await commitJson(
-      CONTENT_PATH,
-      updated,
-      "chore(admin): update about content",
-    );
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });
@@ -115,20 +110,17 @@ export async function saveContactAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
+    const content = await getSiteContent();
     const updated = {
-      ...siteContent,
+      ...content,
       profile: {
-        ...siteContent.profile,
+        ...content.profile,
         email: data.email,
         phone: data.phone,
         location: data.location,
       },
     };
-    await commitJson(
-      CONTENT_PATH,
-      updated,
-      "chore(admin): update contact info",
-    );
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });
@@ -141,8 +133,9 @@ export async function saveExperienceAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
-    const updated = { ...siteContent, experience: items };
-    await commitJson(CONTENT_PATH, updated, "chore(admin): update experience");
+    const content = await getSiteContent();
+    const updated = { ...content, experience: items };
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });
@@ -156,17 +149,32 @@ export async function saveSkillsAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
-    const updated = { ...siteContent, coreSkills, software };
-    await commitJson(CONTENT_PATH, updated, "chore(admin): update skills");
+    const content = await getSiteContent();
+    const updated = { ...content, coreSkills, software };
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });
 }
 
 // ---------------- Portfolio photos ----------------
+//
+// Photos are uploaded as base64 through this Server Action (small JPEGs
+// comfortably fit under Vercel's request body limit) but are stored in our
+// private Vercel Blob store rather than committed to the repo.
 
-function photoPath(categoryId: string, slot: number) {
-  return `public/portfolio/${categoryId}/${slot}.jpg`;
+async function putPhotoBlob(
+  categoryId: string,
+  slot: number,
+  base64Content: string,
+): Promise<string> {
+  const buffer = Buffer.from(base64Content, "base64");
+  const blob = await put(`portfolio/${categoryId}/photo-${slot}`, buffer, {
+    access: "private",
+    contentType: "image/jpeg",
+    addRandomSuffix: true,
+  });
+  return blob.pathname;
 }
 
 export async function uploadPortfolioPhotoAction(
@@ -176,12 +184,31 @@ export async function uploadPortfolioPhotoAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
-    await commitFile({
-      filePath: photoPath(categoryId, slot),
-      content: base64Content,
-      isBase64: true,
-      message: `chore(admin): replace portfolio photo ${categoryId}/${slot}`,
-    });
+    const content = await getSiteContent();
+    const categories: PortfolioCategory[] = content.portfolioCategories;
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) throw new Error("Category not found.");
+    const existing = category.photos.find((p) => p.slot === slot);
+    if (!existing) throw new Error("Photo slot not found.");
+
+    const pathname = await putPhotoBlob(categoryId, slot, base64Content);
+    // Clean up the blob we're replacing (best-effort).
+    await del(existing.pathname).catch(() => {});
+
+    const updated = {
+      ...content,
+      portfolioCategories: categories.map((c) =>
+        c.id === categoryId
+          ? {
+              ...c,
+              photos: c.photos.map((p) =>
+                p.slot === slot ? { ...p, pathname } : p,
+              ),
+            }
+          : c,
+      ),
+    };
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });
@@ -193,29 +220,29 @@ export async function addPortfolioPhotoAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
-    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    const content = await getSiteContent();
+    const categories: PortfolioCategory[] = content.portfolioCategories;
     const category = categories.find((c) => c.id === categoryId);
     if (!category) throw new Error("Category not found.");
 
-    const newSlot = category.count + 1;
-    await commitFile({
-      filePath: photoPath(categoryId, newSlot),
-      content: base64Content,
-      isBase64: true,
-      message: `chore(admin): add portfolio photo ${categoryId}/${newSlot}`,
-    });
+    const newSlot =
+      category.photos.reduce((max, p) => Math.max(max, p.slot), 0) + 1;
+    const pathname = await putPhotoBlob(categoryId, newSlot, base64Content);
 
-    const updated = {
-      ...siteContent,
-      portfolioCategories: categories.map((c) =>
-        c.id === categoryId ? { ...c, count: newSlot } : c,
-      ),
-    };
-    await commitJson(
-      CONTENT_PATH,
-      updated,
-      "chore(admin): add portfolio photo slot",
-    );
+    try {
+      const updated = {
+        ...content,
+        portfolioCategories: categories.map((c) =>
+          c.id === categoryId
+            ? { ...c, photos: [...c.photos, { slot: newSlot, pathname }] }
+            : c,
+        ),
+      };
+      await saveSiteContent(updated);
+    } catch (error) {
+      await del(pathname).catch(() => {});
+      throw error;
+    }
     revalidatePath("/");
     revalidatePath("/admin");
   });
@@ -226,27 +253,28 @@ export async function removePortfolioPhotoAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
-    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    const content = await getSiteContent();
+    const categories: PortfolioCategory[] = content.portfolioCategories;
     const category = categories.find((c) => c.id === categoryId);
-    if (!category || category.count <= 0) throw new Error("Nothing to remove.");
+    if (!category || category.photos.length === 0) {
+      throw new Error("Nothing to remove.");
+    }
 
-    const lastSlot = category.count;
-    await deleteFile({
-      filePath: photoPath(categoryId, lastSlot),
-      message: `chore(admin): remove portfolio photo ${categoryId}/${lastSlot}`,
-    });
+    const lastPhoto = category.photos.reduce(
+      (max, p) => (p.slot > max.slot ? p : max),
+      category.photos[0],
+    );
+    await del(lastPhoto.pathname).catch(() => {});
 
     const updated = {
-      ...siteContent,
+      ...content,
       portfolioCategories: categories.map((c) =>
-        c.id === categoryId ? { ...c, count: lastSlot - 1 } : c,
+        c.id === categoryId
+          ? { ...c, photos: c.photos.filter((p) => p.slot !== lastPhoto.slot) }
+          : c,
       ),
     };
-    await commitJson(
-      CONTENT_PATH,
-      updated,
-      "chore(admin): remove portfolio photo slot",
-    );
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });
@@ -276,13 +304,14 @@ export async function addPortfolioCategoryAction(
       throw new Error("Nama portofolio wajib diisi.");
     }
 
-    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    const content = await getSiteContent();
+    const categories: PortfolioCategory[] = content.portfolioCategories;
     if (categories.some((c) => c.id === id)) {
       throw new Error("ID portofolio sudah dipakai.");
     }
 
     const updated = {
-      ...siteContent,
+      ...content,
       portfolioCategories: [
         ...categories,
         {
@@ -290,16 +319,12 @@ export async function addPortfolioCategoryAction(
           label: data.label.trim(),
           description: data.description.trim(),
           accent: data.accent.trim() || "#ff2f6e",
-          count: 0,
+          photos: [],
           videos: [],
         },
       ],
     };
-    await commitJson(
-      CONTENT_PATH,
-      updated,
-      `chore(admin): add portfolio category ${id}`,
-    );
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });
@@ -310,32 +335,26 @@ export async function removePortfolioCategoryAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
-    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    const content = await getSiteContent();
+    const categories: PortfolioCategory[] = content.portfolioCategories;
     const category = categories.find((c) => c.id === categoryId);
     if (!category) throw new Error("Category not found.");
     if (categories.length <= 1) {
       throw new Error("Minimal harus ada satu portofolio.");
     }
 
-    for (let slot = 1; slot <= category.count; slot++) {
-      await deleteFile({
-        filePath: photoPath(categoryId, slot),
-        message: `chore(admin): remove portfolio photo ${categoryId}/${slot}`,
-      });
+    for (const photo of category.photos) {
+      await del(photo.pathname).catch(() => {});
     }
     for (const video of category.videos ?? []) {
       await del(video.pathname).catch(() => {});
     }
 
     const updated = {
-      ...siteContent,
+      ...content,
       portfolioCategories: categories.filter((c) => c.id !== categoryId),
     };
-    await commitJson(
-      CONTENT_PATH,
-      updated,
-      `chore(admin): remove portfolio category ${categoryId}`,
-    );
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });
@@ -357,7 +376,8 @@ export async function addPortfolioVideoAction(
   return toActionResult(async () => {
     await assertAdmin();
     try {
-      const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+      const content = await getSiteContent();
+      const categories: PortfolioCategory[] = content.portfolioCategories;
       const category = categories.find((c) => c.id === categoryId);
       if (!category) throw new Error("Category not found.");
 
@@ -382,18 +402,14 @@ export async function addPortfolioVideoAction(
 
       const newSlot = videos.reduce((max, v) => Math.max(max, v.slot), 0) + 1;
       const updated = {
-        ...siteContent,
+        ...content,
         portfolioCategories: categories.map((c) =>
           c.id === categoryId
             ? { ...c, videos: [...videos, { slot: newSlot, pathname }] }
             : c,
         ),
       };
-      await commitJson(
-        CONTENT_PATH,
-        updated,
-        "chore(admin): add portfolio video",
-      );
+      await saveSiteContent(updated);
       revalidatePath("/");
       revalidatePath("/admin");
     } catch (error) {
@@ -410,7 +426,8 @@ export async function removePortfolioVideoAction(
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
-    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+    const content = await getSiteContent();
+    const categories: PortfolioCategory[] = content.portfolioCategories;
     const category = categories.find((c) => c.id === categoryId);
     if (!category) throw new Error("Category not found.");
     const video = (category.videos ?? []).find((v) => v.slot === slot);
@@ -419,18 +436,14 @@ export async function removePortfolioVideoAction(
     await del(video.pathname).catch(() => {});
 
     const updated = {
-      ...siteContent,
+      ...content,
       portfolioCategories: categories.map((c) =>
         c.id === categoryId
           ? { ...c, videos: (c.videos ?? []).filter((v) => v.slot !== slot) }
           : c,
       ),
     };
-    await commitJson(
-      CONTENT_PATH,
-      updated,
-      "chore(admin): remove portfolio video",
-    );
+    await saveSiteContent(updated);
     revalidatePath("/");
     revalidatePath("/admin");
   });

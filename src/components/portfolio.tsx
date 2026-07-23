@@ -16,8 +16,8 @@ import TiltCard from "./tilt-card";
 import Magnetic from "./magnetic";
 import {
   MAX_VIDEOS_PER_CATEGORY,
-  portfolioCategories,
-  getPortfolioVideoSrc,
+  getPortfolioMediaSrc,
+  type PortfolioCategory,
 } from "@/lib/profile-data";
 
 const DRIVE_HREF =
@@ -311,18 +311,21 @@ function VideoLightbox({
 }
 
 
-export default function Portfolio() {
-  const [activeTab, setActiveTab] = useState(portfolioCategories[0].id);
+export default function Portfolio({
+  categories,
+}: {
+  categories: PortfolioCategory[];
+}) {
+  const [activeTab, setActiveTab] = useState(categories[0].id);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
-  const category = portfolioCategories.find((c) => c.id === activeTab)!;
-  const images = Array.from(
-    { length: category.count },
-    (_, i) => `/portfolio/${category.id}/${i + 1}.jpg`,
-  );
+  const category = categories.find((c) => c.id === activeTab)!;
+  const images = [...category.photos]
+    .sort((a, b) => a.slot - b.slot)
+    .map((p) => getPortfolioMediaSrc(p.pathname));
   const videos = (category.videos ?? [])
     .slice(0, MAX_VIDEOS_PER_CATEGORY)
-    .map((v) => getPortfolioVideoSrc(v.pathname));
+    .map((v) => getPortfolioMediaSrc(v.pathname));
 
   return (
     <section
@@ -344,7 +347,7 @@ export default function Portfolio() {
         </Reveal>
 
         <Reveal delay={0.1} className="mt-12 flex flex-wrap gap-3">
-          {portfolioCategories.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => {

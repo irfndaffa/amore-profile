@@ -6,9 +6,15 @@ import { ArrowDown, Camera } from "lucide-react";
 import Magnetic from "./magnetic";
 import Marquee from "./marquee";
 import StatCounter from "./stat-counter";
-import { profile, stats } from "@/lib/profile-data";
+import type { Profile, Stat } from "@/lib/profile-data";
 
-export default function Hero() {
+export default function Hero({
+  profile,
+  stats,
+}: {
+  profile: Profile;
+  stats: Stat[];
+}) {
   const [roleIndex, setRoleIndex] = useState(0);
 
   useEffect(() => {
@@ -16,7 +22,7 @@ export default function Hero() {
       setRoleIndex((i) => (i + 1) % profile.roles.length);
     }, 2200);
     return () => clearInterval(id);
-  }, []);
+  }, [profile.roles.length]);
 
   const handleMove = (e: MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

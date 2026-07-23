@@ -1,8 +1,17 @@
-import siteContent from "@/data/site-content.json";
+export type Profile = {
+  fullName: string;
+  nickname: string;
+  roles: string[];
+  location: string;
+  email: string;
+  phone: string;
+};
 
-export const profile = siteContent.profile;
-
-export const stats = siteContent.stats;
+export type Stat = {
+  value: number;
+  suffix: string;
+  label: string;
+};
 
 export type ExperienceItem = {
   company: string;
@@ -11,10 +20,6 @@ export type ExperienceItem = {
   points: string[];
 };
 
-export const experience: ExperienceItem[] = siteContent.experience;
-
-export const coreSkills: string[] = siteContent.coreSkills;
-
 export type SoftwareItem = {
   name: string;
   short: string;
@@ -22,30 +27,30 @@ export type SoftwareItem = {
   colorTo: string;
 };
 
-export const software: SoftwareItem[] = siteContent.software;
+export type PortfolioPhoto = {
+  slot: number;
+  pathname: string;
+};
 
 export type PortfolioVideo = {
   slot: number;
   pathname: string;
 };
 
-// Portfolio videos live in a private Vercel Blob store, so they must be
-// streamed through our own proxy route instead of linked to directly.
-export function getPortfolioVideoSrc(pathname: string): string {
-  return `/api/portfolio-video?pathname=${encodeURIComponent(pathname)}`;
-}
-
 export type PortfolioCategory = {
   id: string;
   label: string;
   description: string;
   accent: string;
-  count: number;
+  photos: PortfolioPhoto[];
   videos?: PortfolioVideo[];
 };
 
-export const portfolioCategories: PortfolioCategory[] =
-  siteContent.portfolioCategories;
+// Portfolio photos and videos live in a private Vercel Blob store, so they
+// must be streamed through our own proxy route instead of linked to directly.
+export function getPortfolioMediaSrc(pathname: string): string {
+  return `/api/portfolio-media?pathname=${encodeURIComponent(pathname)}`;
+}
 
 export const MAX_VIDEOS_PER_CATEGORY = 2;
 export const MAX_TOTAL_VIDEOS = 50;

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Check, Copy, Mail, MapPin, Phone } from "lucide-react";
 import Reveal from "./reveal";
 import Magnetic from "./magnetic";
-import { profile } from "@/lib/profile-data";
+import type { Profile } from "@/lib/profile-data";
 
 function ContactRow({
   icon,
@@ -82,7 +82,7 @@ function ContactRow({
   );
 }
 
-export default function Contact() {
+export default function Contact({ profile }: { profile: Profile }) {
   return (
     <section id="contact" className="relative px-6 py-28 sm:px-10 lg:py-36">
       <div className="mx-auto max-w-6xl">

@@ -8,8 +8,10 @@ import {
   MAX_VIDEOS_PER_CATEGORY,
   MAX_VIDEO_SIZE_BYTES,
   PortfolioCategory,
+  Profile,
   SoftwareItem,
-  getPortfolioVideoSrc,
+  Stat,
+  getPortfolioMediaSrc,
 } from "@/lib/profile-data";
 import {
   addPortfolioCategoryAction,
@@ -25,17 +27,6 @@ import {
   saveSkillsAction,
   uploadPortfolioPhotoAction,
 } from "./actions";
-
-type Profile = {
-  fullName: string;
-  nickname: string;
-  roles: string[];
-  location: string;
-  email: string;
-  phone: string;
-};
-
-type Stat = { value: number; suffix: string; label: string };
 
 type Tab = "about" | "experience" | "skills" | "contact" | "portfolio";
 
@@ -57,7 +48,7 @@ function SaveStatus({
   if (status === "saved")
     return (
       <span className="text-sm text-accent">
-        Tersimpan. Perubahan akan tampil setelah redeploy (~1 menit).
+        Tersimpan. Perubahan langsung tampil di halaman utama.
       </span>
     );
   if (status === "idle" || !status) return null;
@@ -543,7 +534,6 @@ function PortfolioCategoryEditor({
   const [status, setStatus] = useState<Record<number, string>>({});
   const [pendingSlot, setPendingSlot] = useState<number | null>(null);
   const [pendingAction, startTransition] = useTransition();
-  const [bump, setBump] = useState(0);
   const [videos, setVideos] = useState(category.videos ?? []);
   const [videoStatus, setVideoStatus] = useState("");
   const [pendingVideo, startVideoTransition] = useTransition();
@@ -561,7 +551,6 @@ function PortfolioCategoryEditor({
           [slot]: res.ok ? "saved" : res.error,
         }));
         setPendingSlot(null);
-        setBump((b) => b + 1);
       });
       e.target.value = "";
     };
@@ -576,7 +565,6 @@ function PortfolioCategoryEditor({
         ...prev,
         [-1]: res.ok ? "saved" : res.error,
       }));
-      setBump((b) => b + 1);
     });
     e.target.value = "";
   };
@@ -588,7 +576,6 @@ function PortfolioCategoryEditor({
         ...prev,
         [-1]: res.ok ? "saved" : res.error,
       }));
-      setBump((b) => b + 1);
     });
   };
 
@@ -667,7 +654,7 @@ function PortfolioCategoryEditor({
         </span>
         <div className="flex items-center gap-3">
           <span className="text-xs uppercase tracking-widest text-muted">
-            {category.count} foto · {videos.length}/{MAX_VIDEOS_PER_CATEGORY} video
+            {category.photos.length} foto · {videos.length}/{MAX_VIDEOS_PER_CATEGORY} video
           </span>
           <button
             type="button"
@@ -686,13 +673,13 @@ function PortfolioCategoryEditor({
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {Array.from({ length: category.count }).map((_, idx) => {
-          const slot = idx + 1;
+        {category.photos.map((photo) => {
+          const slot = photo.slot;
           return (
             <div key={slot} className="flex flex-col gap-2">
               <div className="relative aspect-square overflow-hidden rounded-lg bg-bg-elevated">
                 <Image
-                  src={`/portfolio/${category.id}/${slot}.jpg?v=${bump}`}
+                  src={getPortfolioMediaSrc(photo.pathname)}
                   alt=""
                   fill
                   unoptimized
@@ -728,7 +715,7 @@ function PortfolioCategoryEditor({
             onChange={handleAdd}
           />
         </label>
-        {category.count > 0 && (
+        {category.photos.length > 0 && (
           <button
             type="button"
             onClick={handleRemoveLast}
@@ -759,7 +746,7 @@ function PortfolioCategoryEditor({
             <div key={video.slot} className="flex flex-col gap-2">
               <div className="relative aspect-video overflow-hidden rounded-lg bg-bg-elevated">
                 <video
-                  src={getPortfolioVideoSrc(video.pathname)}
+                  src={getPortfolioMediaSrc(video.pathname)}
                   controls
                   className="h-full w-full object-cover"
                 />
@@ -840,7 +827,7 @@ function PortfolioTab({
             label: newLabel.trim(),
             description: newDescription.trim(),
             accent: newAccent.trim() || "#ff2f6e",
-            count: 0,
+            photos: [],
             videos: [],
           },
         ]);
