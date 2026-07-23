@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ChangeEvent } from "react";
 import Image from "next/image";
+import { upload } from "@vercel/blob/client";
 import {
   ExperienceItem,
   MAX_VIDEOS_PER_CATEGORY,
@@ -520,19 +521,12 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-const VIDEO_EXT_BY_MIME: Record<string, string> = {
-  "video/mp4": "mp4",
-  "video/webm": "webm",
-  "video/quicktime": "mov",
-  "video/x-m4v": "m4v",
-};
-const ALLOWED_VIDEO_EXTS = ["mp4", "webm", "mov", "m4v"];
-
-function getVideoExt(file: File): string {
-  if (VIDEO_EXT_BY_MIME[file.type]) return VIDEO_EXT_BY_MIME[file.type];
-  const fromName = file.name.split(".").pop()?.toLowerCase();
-  return fromName && ALLOWED_VIDEO_EXTS.includes(fromName) ? fromName : "mp4";
-}
+const VIDEO_CONTENT_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-m4v",
+];
 
 function PortfolioCategoryEditor({
   category,
@@ -612,19 +606,40 @@ function PortfolioCategoryEditor({
       e.target.value = "";
       return;
     }
-    const ext = getVideoExt(file);
-    const base64 = await fileToBase64(file);
-    startVideoTransition(async () => {
-      const res = await addPortfolioVideoAction(category.id, base64, ext);
-      if (res.ok) {
-        const nextSlot =
-          videos.reduce((max, v) => Math.max(max, v.slot), 0) + 1;
-        setVideos((prev) => [...prev, { slot: nextSlot, ext }]);
-        setVideoStatus("saved");
-      } else {
-        setVideoStatus(res.error);
-      }
-    });
+    if (!VIDEO_CONTENT_TYPES.includes(file.type)) {
+      setVideoStatus("Format video tidak didukung (gunakan mp4, webm, mov, atau m4v).");
+      e.target.value = "";
+      return;
+    }
+
+    setVideoStatus("uploading");
+    try {
+      const blob = await upload(
+        `portfolio/${category.id}/${Date.now()}-${file.name}`,
+        file,
+        {
+          access: "public",
+          handleUploadUrl: "/api/portfolio-video-upload",
+        },
+      );
+      startVideoTransition(async () => {
+        const res = await addPortfolioVideoAction(
+          category.id,
+          blob.url,
+          file.size,
+        );
+        if (res.ok) {
+          const nextSlot =
+            videos.reduce((max, v) => Math.max(max, v.slot), 0) + 1;
+          setVideos((prev) => [...prev, { slot: nextSlot, url: blob.url }]);
+          setVideoStatus("saved");
+        } else {
+          setVideoStatus(res.error);
+        }
+      });
+    } catch (error) {
+      setVideoStatus(error instanceof Error ? error.message : "Upload gagal.");
+    }
     e.target.value = "";
   };
 
@@ -740,7 +755,7 @@ function PortfolioCategoryEditor({
             <div key={video.slot} className="flex flex-col gap-2">
               <div className="relative aspect-video overflow-hidden rounded-lg bg-bg-elevated">
                 <video
-                  src={`/portfolio/${category.id}/video-${video.slot}.${video.ext}?v=${bump}`}
+                  src={video.url}
                   controls
                   className="h-full w-full object-cover"
                 />

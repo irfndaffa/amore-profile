@@ -318,7 +318,7 @@ export default function Portfolio() {
   );
   const videos = (category.videos ?? [])
     .slice(0, MAX_VIDEOS_PER_CATEGORY)
-    .map((v) => `/portfolio/${category.id}/video-${v.slot}.${v.ext}`);
+    .map((v) => v.url);
 
   return (
     <section

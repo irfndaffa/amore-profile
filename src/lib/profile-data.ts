@@ -26,7 +26,7 @@ export const software: SoftwareItem[] = siteContent.software;
 
 export type PortfolioVideo = {
   slot: number;
-  ext: string;
+  url: string;
 };
 
 export type PortfolioCategory = {

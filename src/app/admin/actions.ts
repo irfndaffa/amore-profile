@@ -9,6 +9,7 @@ import {
   verifyAdminPassword,
 } from "@/lib/admin-auth";
 import { commitFile, commitJson, deleteFile } from "@/lib/github-content";
+import { del } from "@vercel/blob";
 import siteContent from "@/data/site-content.json";
 import {
   MAX_TOTAL_VIDEOS,
@@ -20,7 +21,6 @@ import {
 } from "@/lib/profile-data";
 
 const CONTENT_PATH = "src/data/site-content.json";
-const ALLOWED_VIDEO_EXTS = ["mp4", "webm", "mov", "m4v"];
 const CATEGORY_ID_REGEX = /^[a-z0-9-]+$/;
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -324,10 +324,7 @@ export async function removePortfolioCategoryAction(
       });
     }
     for (const video of category.videos ?? []) {
-      await deleteFile({
-        filePath: videoPath(categoryId, video.slot, video.ext),
-        message: `chore(admin): remove portfolio video ${categoryId}/${video.slot}`,
-      });
+      await del(video.url).catch(() => {});
     }
 
     const updated = {
@@ -345,73 +342,65 @@ export async function removePortfolioCategoryAction(
 }
 
 // ---------------- Portfolio videos ----------------
-
-function videoPath(categoryId: string, slot: number, ext: string) {
-  return `public/portfolio/${categoryId}/video-${slot}.${ext}`;
-}
-
-function normalizeVideoExt(ext: string): string {
-  const normalized = ext.trim().toLowerCase().replace(/^\./, "");
-  if (!ALLOWED_VIDEO_EXTS.includes(normalized)) {
-    throw new Error("Format video tidak didukung (gunakan mp4, webm, mov, atau m4v).");
-  }
-  return normalized;
-}
+//
+// Videos are uploaded directly from the browser to Vercel Blob (see
+// src/app/api/portfolio-video-upload/route.ts) because Vercel Functions
+// reject request bodies larger than 4.5MB — sending a base64-encoded video
+// through a Server Action would exceed that limit. These actions only ever
+// receive the resulting blob URL, never the file bytes.
 
 export async function addPortfolioVideoAction(
   categoryId: string,
-  base64Content: string,
-  ext: string,
+  url: string,
+  sizeBytes: number,
 ): Promise<ActionResult> {
   return toActionResult(async () => {
     await assertAdmin();
-    const categories: PortfolioCategory[] = siteContent.portfolioCategories;
-    const category = categories.find((c) => c.id === categoryId);
-    if (!category) throw new Error("Category not found.");
+    try {
+      const categories: PortfolioCategory[] = siteContent.portfolioCategories;
+      const category = categories.find((c) => c.id === categoryId);
+      if (!category) throw new Error("Category not found.");
 
-    const sizeBytes = Buffer.from(base64Content, "base64").length;
-    if (sizeBytes > MAX_VIDEO_SIZE_BYTES) {
-      throw new Error("Ukuran video maksimal 5MB.");
+      if (sizeBytes > MAX_VIDEO_SIZE_BYTES) {
+        throw new Error("Ukuran video maksimal 5MB.");
+      }
+
+      const videos = category.videos ?? [];
+      if (videos.length >= MAX_VIDEOS_PER_CATEGORY) {
+        throw new Error(
+          `Maksimal ${MAX_VIDEOS_PER_CATEGORY} video per portofolio.`,
+        );
+      }
+
+      const totalVideos = categories.reduce(
+        (sum, c) => sum + (c.videos?.length ?? 0),
+        0,
+      );
+      if (totalVideos >= MAX_TOTAL_VIDEOS) {
+        throw new Error(`Batas total ${MAX_TOTAL_VIDEOS} video sudah tercapai.`);
+      }
+
+      const newSlot = videos.reduce((max, v) => Math.max(max, v.slot), 0) + 1;
+      const updated = {
+        ...siteContent,
+        portfolioCategories: categories.map((c) =>
+          c.id === categoryId
+            ? { ...c, videos: [...videos, { slot: newSlot, url }] }
+            : c,
+        ),
+      };
+      await commitJson(
+        CONTENT_PATH,
+        updated,
+        "chore(admin): add portfolio video",
+      );
+      revalidatePath("/");
+      revalidatePath("/admin");
+    } catch (error) {
+      // Clean up the orphaned blob if we can't register it in the content JSON.
+      await del(url).catch(() => {});
+      throw error;
     }
-
-    const videos = category.videos ?? [];
-    if (videos.length >= MAX_VIDEOS_PER_CATEGORY) {
-      throw new Error(`Maksimal ${MAX_VIDEOS_PER_CATEGORY} video per portofolio.`);
-    }
-
-    const totalVideos = categories.reduce(
-      (sum, c) => sum + (c.videos?.length ?? 0),
-      0,
-    );
-    if (totalVideos >= MAX_TOTAL_VIDEOS) {
-      throw new Error(`Batas total ${MAX_TOTAL_VIDEOS} video sudah tercapai.`);
-    }
-
-    const normalizedExt = normalizeVideoExt(ext);
-    const newSlot = videos.reduce((max, v) => Math.max(max, v.slot), 0) + 1;
-
-    await commitFile({
-      filePath: videoPath(categoryId, newSlot, normalizedExt),
-      content: base64Content,
-      isBase64: true,
-      message: `chore(admin): add portfolio video ${categoryId}/${newSlot}`,
-    });
-
-    const updated = {
-      ...siteContent,
-      portfolioCategories: categories.map((c) =>
-        c.id === categoryId
-          ? { ...c, videos: [...videos, { slot: newSlot, ext: normalizedExt }] }
-          : c,
-      ),
-    };
-    await commitJson(
-      CONTENT_PATH,
-      updated,
-      "chore(admin): add portfolio video",
-    );
-    revalidatePath("/");
-    revalidatePath("/admin");
   });
 }
 
@@ -427,10 +416,7 @@ export async function removePortfolioVideoAction(
     const video = (category.videos ?? []).find((v) => v.slot === slot);
     if (!video) throw new Error("Video not found.");
 
-    await deleteFile({
-      filePath: videoPath(categoryId, slot, video.ext),
-      message: `chore(admin): remove portfolio video ${categoryId}/${slot}`,
-    });
+    await del(video.url).catch(() => {});
 
     const updated = {
       ...siteContent,
